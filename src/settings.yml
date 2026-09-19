@@ -1,0 +1,107 @@
+---
+strategy: polling
+no_screen_padding: 'yes'
+dark_mode: 'no'
+static_data: ''
+polling_verb: get
+framework_version: 3.1.2
+serverless_language: ''
+polling_url: "{% liquid\r\nassign latlon = lat_lon | split: \",\"\r\nassign lat = latlon[0]\r\nassign lon = latlon[1]\r\n%}\r\nhttps://api.open-meteo.com/v1/forecast?latitude={{ lat }}&longitude={{ lon }}&current=temperature_2m&temperature_unit={{ unit }}&timezone=auto"
+polling_headers: ''
+polling_body: ''
+id: 377363
+oauth_enabled: 'false'
+oauth_pkce_enabled: 'no'
+oauth_authorize_url: ''
+oauth_token_url: ''
+oauth_scopes: ''
+oauth_scope_separator: ''
+oauth_refresh_url: ''
+oauth_auth_params: ''
+oauth_token_headers: ''
+oauth_token_site: ''
+oauth_token_params: ''
+oauth_token_request_auth_method: ''
+oauth_body_format: ''
+oauth_token_response_metadata: ''
+oauth_authorization_method: ''
+oauth_refresh_params: ''
+oauth_token_field_name: ''
+oauth_expiry_field_name: ''
+oauth_expiry_strategy: ''
+oauth_fixed_expiry_ms: ''
+custom_fields:
+- name: About this plugin
+  keyname: author_bio
+  field_type: author_bio
+  description: The lines tell you what time it is, or what the weather is or what week it is. Setup if you want it white/black or black/white.
+  category: calendar
+  email_address: trmnl@achtnegen.nl
+- keyname: mode
+  field_type: select
+  name: View
+  description: What would you like to show on your screen
+  options:
+  - Temperature: temperature
+  - Time: time
+  - Week Number: weeknumber
+  default: temperature
+  conditional_validation:
+  - when: temperature
+    required:
+    - lat_lon
+    - unit
+    hidden:
+    - time_format
+    - custom_text
+  - when: time
+    required:
+    - time_format
+    hidden:
+    - lat_lon
+    - unit
+    - custom_text
+  - when: weeknumber
+    hidden:
+    - lat_lon
+    - unit
+    - time_format
+    - custom_text
+  - when: custom_text
+    hidden:
+    - lat_lon
+    - unit
+    - time_format
+- keyname: lat_lon
+  field_type: lat_lon
+  name: Your location
+- keyname: unit
+  field_type: select
+  name: Temperature unit
+  options:
+  - Celsius (°C): celsius
+  - Fahrenheit (°F): fahrenheit
+  default: celsius
+  optional: true
+- keyname: time_format
+  field_type: select
+  name: Time format
+  options:
+  - 24h: 24h
+  - 12hr (AM/PM): 12h
+  default: 24h
+  optional: true
+- keyname: custom_text
+  field_type: text
+  name: Custom text
+  optional: true
+- keyname: color_scheme
+  field_type: select
+  name: Color scheme
+  options:
+  - White with black lines: white
+  - Black with white lines: black
+  default: white
+name: 'Lines '
+description: Time or Weather
+refresh_interval: 15
