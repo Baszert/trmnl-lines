@@ -4,7 +4,7 @@ no_screen_padding: 'yes'
 dark_mode: 'no'
 static_data: ''
 polling_verb: get
-framework_version: 3.1.2
+framework_version: latest
 serverless_language: ''
 polling_url: "{% liquid\r\nassign latlon = lat_lon | split: \",\"\r\nassign lat = latlon[0]\r\nassign lon = latlon[1]\r\n%}\r\nhttps://api.open-meteo.com/v1/forecast?latitude={{ lat }}&longitude={{ lon }}&current=temperature_2m&temperature_unit={{ unit }}&timezone=auto"
 polling_headers: ''
