@@ -53,21 +53,13 @@ custom_fields:
     - unit
     hidden:
     - time_format
-    - custom_text
   - when: time
     required:
     - time_format
     hidden:
     - lat_lon
     - unit
-    - custom_text
   - when: weeknumber
-    hidden:
-    - lat_lon
-    - unit
-    - time_format
-    - custom_text
-  - when: custom_text
     hidden:
     - lat_lon
     - unit
@@ -90,10 +82,6 @@ custom_fields:
   - 24h: 24h
   - 12hr (AM/PM): 12h
   default: 24h
-  optional: true
-- keyname: custom_text
-  field_type: text
-  name: Custom text
   optional: true
 - keyname: color_scheme
   field_type: select

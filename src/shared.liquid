@@ -1,10 +1,8 @@
 {%- assign mode = trmnl.plugin_settings.custom_fields_values.mode | default: "temperature" -%}
 {%- assign color_scheme = trmnl.plugin_settings.custom_fields_values.color_scheme | default: "white" -%}
 {%- assign time_format = trmnl.plugin_settings.custom_fields_values.time_format | default: "24h" -%}
-{%- assign line_thickness = trmnl.plugin_settings.custom_fields_values.line_thickness | default: "2.6" -%}
-{%- assign line_spacing = trmnl.plugin_settings.custom_fields_values.line_spacing | default: "15" -%}
-{%- comment -%} transform.js isn't active (no serverless language), so read the raw Open-Meteo value {%- endcomment -%}
-{%- assign temp = temp | default: current.temperature_2m | default: 0 | round -%}
+{%- comment -%} Open-Meteo value straight from the polling data {%- endcomment -%}
+{%- assign temp = current.temperature_2m | default: 0 | round -%}
 {%- assign local_epoch = trmnl.system.timestamp_utc | date: "%s" | plus: trmnl.user.utc_offset -%}
 
 {%- if mode == "time" -%}
@@ -15,8 +13,6 @@
   {%- endif -%}
 {%- elsif mode == "weeknumber" -%}
   {%- assign display_text = local_epoch | date: "%V" -%}
-{%- elsif mode == "custom_text" -%}
-  {%- assign display_text = trmnl.plugin_settings.custom_fields_values.custom_text | default: "Hello" -%}
 {%- else -%}
   {%- assign display_text = temp | append: "°" -%}
 {%- endif -%}
