@@ -1,0 +1,209 @@
+{%- assign mode = trmnl.plugin_settings.custom_fields_values.mode | default: "temperature" -%}
+{%- assign color_scheme = trmnl.plugin_settings.custom_fields_values.color_scheme | default: "white" -%}
+{%- assign time_format = trmnl.plugin_settings.custom_fields_values.time_format | default: "24h" -%}
+{%- assign line_thickness = trmnl.plugin_settings.custom_fields_values.line_thickness | default: "2.6" -%}
+{%- assign line_spacing = trmnl.plugin_settings.custom_fields_values.line_spacing | default: "15" -%}
+{%- assign temp = temp | default: 0 -%}
+{%- assign local_epoch = trmnl.system.timestamp_utc | date: "%s" | plus: trmnl.user.utc_offset -%}
+
+{%- if mode == "time" -%}
+  {%- if time_format == "12h" -%}
+    {%- assign display_text = local_epoch | date: "%I:%M %p" -%}
+  {%- else -%}
+    {%- assign display_text = local_epoch | date: "%H:%M" -%}
+  {%- endif -%}
+{%- elsif mode == "weeknumber" -%}
+  {%- assign display_text = local_epoch | date: "%V" -%}
+{%- elsif mode == "custom_text" -%}
+  {%- assign display_text = trmnl.plugin_settings.custom_fields_values.custom_text | default: "Hello" -%}
+{%- else -%}
+  {%- assign display_text = temp | append: "°" -%}
+{%- endif -%}
+
+{%- if color_scheme == "black" -%}
+  {%- assign bg_class = "bg--black" -%}
+  {%- assign line_color = "#ffffff" -%}
+{%- else -%}
+  {%- assign bg_class = "bg--white" -%}
+  {%- assign line_color = "#000000" -%}
+{%- endif -%}
+
+<script>
+(function () {
+  function dt1d(f, n, d, v, z) {
+    v[0] = 0; z[0] = -Infinity; z[1] = Infinity;
+    let k = 0;
+    for (let q = 1; q < n; q++) {
+      let s;
+      while (true) {
+        const vk = v[k];
+        s = ((f[q] + q * q) - (f[vk] + vk * vk)) / (2 * q - 2 * vk);
+        if (s <= z[k]) { k--; } else break;
+      }
+      k++; v[k] = q; z[k] = s; z[k + 1] = Infinity;
+    }
+    k = 0;
+    for (let q = 0; q < n; q++) {
+      while (z[k + 1] < q) k++;
+      const vk = v[k];
+      d[q] = (q - vk) * (q - vk) + f[vk];
+    }
+  }
+
+  function edt2dSquared(f, w, h) {
+    const g = new Float64Array(w * h);
+    {
+      const colIn = new Float64Array(h), colOut = new Float64Array(h);
+      const v = new Int32Array(h), z = new Float64Array(h + 1);
+      for (let x = 0; x < w; x++) {
+        for (let y = 0; y < h; y++) colIn[y] = f[y * w + x];
+        dt1d(colIn, h, colOut, v, z);
+        for (let y = 0; y < h; y++) g[y * w + x] = colOut[y];
+      }
+    }
+    const out = new Float64Array(w * h);
+    {
+      const rowIn = new Float64Array(w), rowOut = new Float64Array(w);
+      const v = new Int32Array(w), z = new Float64Array(w + 1);
+      for (let y = 0; y < h; y++) {
+        const base = y * w;
+        for (let x = 0; x < w; x++) rowIn[x] = g[base + x];
+        dt1d(rowIn, w, rowOut, v, z);
+        for (let x = 0; x < w; x++) out[base + x] = rowOut[x];
+      }
+    }
+    return out;
+  }
+
+  function boxBlurFloat(src, w, h, radius, passes) {
+    if (radius < 1) return src;
+    let a = src, b = new Float32Array(w * h);
+    for (let p = 0; p < passes; p++) {
+      for (let y = 0; y < h; y++) {
+        const base = y * w;
+        let sum = 0;
+        for (let x = -radius; x <= radius; x++) sum += a[base + Math.min(w - 1, Math.max(0, x))];
+        for (let x = 0; x < w; x++) {
+          b[base + x] = sum / (radius * 2 + 1);
+          const addX = Math.min(w - 1, x + radius + 1), remX = Math.max(0, x - radius);
+          sum += a[base + addX] - a[base + remX];
+        }
+      }
+      const tmp = new Float32Array(w * h);
+      for (let x = 0; x < w; x++) {
+        let sum = 0;
+        for (let y = -radius; y <= radius; y++) sum += b[Math.min(h - 1, Math.max(0, y)) * w + x];
+        for (let y = 0; y < h; y++) {
+          tmp[y * w + x] = sum / (radius * 2 + 1);
+          const addY = Math.min(h - 1, y + radius + 1), remY = Math.max(0, y - radius);
+          sum += b[addY * w + x] - b[remY * w + x];
+        }
+      }
+      a = tmp; b = new Float32Array(w * h);
+    }
+    return a;
+  }
+
+  function drawMask(text, w, h, fillFrac) {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#000';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    let fontSize = Math.round(h * fillFrac * 0.82);
+    ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+    const maxW = w * fillFrac;
+    const tw = ctx.measureText(text).width;
+    if (tw > maxW) {
+      fontSize = Math.max(8, Math.floor(fontSize * (maxW / tw)));
+      ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+    }
+    ctx.fillText(text, w / 2, h / 2 + fontSize * 0.04 + h * 0.06);
+    return ctx.getImageData(0, 0, w, h);
+  }
+
+  function computeElevation(imgData, w, h, falloff, gamma, blurR) {
+    const n = w * h, alpha = imgData.data;
+    const f = new Float64Array(n);
+    for (let i = 0; i < n; i++) f[i] = alpha[i * 4 + 3] > 127 ? 1e20 : 0;
+    const d2 = edt2dSquared(f, w, h);
+    let elev = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      if (alpha[i * 4 + 3] > 127) {
+        const dist = Math.sqrt(d2[i]);
+        let t = Math.min(1, dist / falloff);
+        t = Math.pow(t, gamma);
+        elev[i] = t;
+      }
+    }
+    if (blurR > 0) elev = boxBlurFloat(elev, w, h, blurR, 3);
+    return elev;
+  }
+
+  function computeLines(elev, w, h, spacing, amplitude, step) {
+    const lines = [];
+    const pivotY = h / 2;
+    for (let y0 = spacing / 2; y0 < h; y0 += spacing) {
+      const yy = Math.min(h - 1, Math.max(0, Math.round(y0)));
+      const pts = [];
+      for (let x = 0; x <= w; x += step) {
+        const xx = Math.min(w - 1, x);
+        const e = elev[yy * w + xx];
+        pts.push([x, pivotY + (y0 - pivotY) - e * amplitude]);
+      }
+      lines.push(pts);
+    }
+    return lines;
+  }
+
+  function render() {
+    const canvas = document.querySelector('.lines-canvas');
+    if (!canvas) return;
+    const text = canvas.dataset.text || '';
+    const lineColor = canvas.dataset.lineColor || '#000000';
+    const thicknessBase = parseFloat(canvas.dataset.thickness) || 2.6;
+    const spacingBase = parseFloat(canvas.dataset.spacing) || 15;
+    const fillFrac = parseFloat(canvas.dataset.fill) || 0.85;
+
+    const rect = canvas.parentElement.getBoundingClientRect();
+    const w = Math.max(10, Math.round(rect.width));
+    const h = Math.max(10, Math.round(rect.height));
+    canvas.width = w;
+    canvas.height = h;
+
+    const REF_H = 420;
+    const scaleFactor = h / REF_H;
+    const spacing = Math.max(2, spacingBase * scaleFactor);
+    const thickness = Math.max(0.4, thicknessBase * scaleFactor);
+    const amplitude = 42 * scaleFactor;
+    const falloff = Math.max(1, 34 * scaleFactor);
+    const blurR = Math.round(4 * scaleFactor);
+    const step = Math.max(1, Math.round(6 * scaleFactor));
+
+    const mask = drawMask(text, w, h, fillFrac);
+    const elev = computeElevation(mask, w, h, falloff, 1.0, blurR);
+    const lines = computeLines(elev, w, h, spacing, amplitude, step);
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, w, h);
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = thickness;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    for (const pts of lines) {
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    }
+    ctx.stroke();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', render);
+  } else {
+    render();
+  }
+})();
+</script>
