@@ -3,7 +3,8 @@
 {%- assign time_format = trmnl.plugin_settings.custom_fields_values.time_format | default: "24h" -%}
 {%- assign line_thickness = trmnl.plugin_settings.custom_fields_values.line_thickness | default: "2.6" -%}
 {%- assign line_spacing = trmnl.plugin_settings.custom_fields_values.line_spacing | default: "15" -%}
-{%- assign temp = temp | default: 0 -%}
+{%- comment -%} transform.js isn't active (no serverless language), so read the raw Open-Meteo value {%- endcomment -%}
+{%- assign temp = temp | default: current.temperature_2m | default: 0 | round -%}
 {%- assign local_epoch = trmnl.system.timestamp_utc | date: "%s" | plus: trmnl.user.utc_offset -%}
 
 {%- if mode == "time" -%}
